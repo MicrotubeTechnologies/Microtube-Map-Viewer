@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' file: data: blob:; script-src 'self' 'unsafe-inline' file:; style-src 'self' 'unsafe-inline' file:; img-src 'self' file: data: blob:; media-src 'self' file: data: blob:; font-src 'self' file: data:; connect-src 'self' file:">
+<title>Microtube Map</title>
+<link rel="stylesheet" href="app/app.css">
+<script>window.MAP_MODE='viewer';</script>
+<script src="data.js"></script>
+</head>
+<body>
+
+
+<div class="vp" id="vp">
+  <div class="world" id="world">
+    <svg class="links" id="linksSvg" width="100000" height="100000"><g id="links" transform="translate(50000 50000)"></g></svg>
+  </div>
+</div>
+<div class="state" id="state"><div><h2>Loading the map</h2><p>Opening your project.</p></div></div>
+
+<div class="hud tl">
+  <span class="eyebrow">Microtube</span>
+  <span class="title" id="mapTitle" title="Double-click to rename">Product &amp; project map</span>
+  <span class="pubdate" id="pubDate" hidden></span>
+</div>
+<div class="hud tr">
+  <span class="savestate" id="saveState" hidden data-state="saved">All changes saved</span>
+  <button class="tool primary" id="publishBtn" type="button" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Publish viewer</button>
+</div>
+<div class="hud bl"><span class="hint" id="hint">Drag the background to move around · scroll or pinch to zoom · drag a card to rearrange · click a card for its videos</span></div>
+<div class="hud br">
+  <button class="tool" id="tidy" type="button" hidden>Tidy layout</button>
+  <button class="tool" id="zout" type="button" aria-label="Zoom out"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+  <button class="tool" id="zin" type="button" aria-label="Zoom in"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="tool" id="fit" type="button" aria-label="Fit map to screen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="tbar" id="tbar" role="toolbar" aria-label="Card tools" hidden>
+  <button type="button" id="tVideos"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg><span id="tVideosLabel">Media</span></button>
+  <button type="button" id="tEdit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Edit</button>
+  <button type="button" id="tAdd"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Sub-item</button>
+  <button type="button" id="tFree"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 3" aria-hidden="true"><path d="M4 18L20 6"/></svg>Connect</button>
+  <button type="button" id="tLink"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c6 0 4-14 14-14"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/></svg>Reconnect</button>
+  <button type="button" id="tPlat" aria-haspopup="true" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/></svg>Platforms</button>
+  <button type="button" id="tStyle" aria-haspopup="true" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 12h16"/></svg>Style</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button type="button" id="tDel" class="danger">Delete</button>
+</div>
+<div class="stylepop" id="stylepop" hidden>
+  <h4>Box</h4>
+  <div class="opts" id="boxOpts"></div>
+  <h4>Colour</h4>
+  <div class="opts colors" id="colorOpts"></div>
+</div>
+<div class="stylepop" id="platpop" hidden>
+  <h4>Available on</h4>
+  <div class="ptoggles" id="platToggles"></div>
+  <form class="padd" id="platAdd"><label class="sr" for="platCustom">Add another platform</label><input type="text" id="platCustom" placeholder="Add another, e.g. Web" maxlength="24"><button type="submit">Add</button></form>
+</div>
+<div class="banner" id="banner" hidden><span id="bText">Click the card this should sit under</span><button type="button" id="bCancel">Cancel</button></div>
+<div class="lbar" id="lbar" role="toolbar" aria-label="Connector tools" hidden>
+  <button type="button" id="lLabel">Add label</button>
+  <button type="button" id="lDel" class="danger">Delete connector</button>
+  <form id="lForm" hidden style="display:flex;gap:4px"><label class="sr" for="lInput">Connector label</label><input type="text" id="lInput" maxlength="40" placeholder="Label, e.g. uses" style="min-height:36px;width:180px;padding:6px 10px;font-size:13px"><button type="submit">Save</button></form>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="tmodal" id="pubModal" hidden role="dialog" aria-modal="true" aria-labelledby="pubTitle">
+  <div class="tbox" style="width:min(560px,100%)">
+    <div class="th"><h2 id="pubTitle">Publish viewer</h2><button class="x" id="pubClose" type="button" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div id="pubWork"><p class="msg" id="pubText"></p><div class="tprog"><div class="tbarfill" id="pubBar"></div></div></div>
+    <div id="pubResult" hidden>
+      <p style="margin:0 0 6px"><b>Viewer ready.</b> <span id="pubSummary" class="msg"></span></p>
+      <div class="pubrow"><div><b>Zip for your apps page</b><span id="pubZip"></span></div><button class="btn small" id="pubShowZip" type="button">Show</button></div>
+      <div class="pubrow"><div><b>Folder (for the Android build)</b><span id="pubFolder"></span></div><button class="btn small" id="pubShowFolder" type="button">Show</button></div>
+      <p class="msg">Windows and Mac: people unzip it and open “Open Microtube Map.html”. Android: run <code>npm run android</code> in the app’s source folder to turn the latest publish into an APK.</p>
+    </div>
+  </div>
+</div>
+<div class="pmodal" id="player" hidden role="dialog" aria-modal="true" aria-labelledby="pTitle">
+  <div class="ptop"><div class="pt"><b id="pTitle"></b><span id="pSub"></span></div>
+    <button class="x" id="pClose" type="button" aria-label="Close player"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="pstage">
+    <button class="pnav" id="pPrev" type="button" aria-label="Previous video"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <div id="pBody" style="flex:1;min-width:0;height:100%;display:flex;align-items:center;justify-content:center"></div>
+    <button class="pnav" id="pNext" type="button" aria-label="Next video"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+  </div>
+  <div class="pthumbs" id="pThumbs"></div>
+</div>
+<div class="tmodal" id="trim" hidden role="dialog" aria-modal="true" aria-labelledby="trimTitle">
+  <div class="tbox">
+    <div class="th"><div><h2 id="trimTitle">Add video</h2><span class="tsrc" id="tSrcInfo"></span></div><button class="x" id="trimClose" type="button" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <video id="tv" playsinline preload="auto"></video>
+    <div class="nopreview" id="tNoPreview" hidden>This format can’t be previewed here, but it can still be converted. The whole video will be added.</div>
+    <div id="tPreviewBits">
+    <div class="tline" id="tl">
+      <div class="tlsel" id="tlsel"></div>
+      <div class="tlhead" id="tlhead"></div>
+      <button class="hd" id="hs" type="button" role="slider" aria-label="Clip start"></button>
+      <button class="hd" id="he" type="button" role="slider" aria-label="Clip end"></button>
+    </div>
+    <div class="trow"><span class="tinfo" id="tInfo">Whole video</span>
+      <div class="btns"><button class="btn small" id="tPlay" type="button">Play</button><button class="btn small" id="tSetS" type="button">Start here</button><button class="btn small" id="tSetE" type="button">End here</button><button class="btn small" id="tPrev" type="button">Preview selection</button><button class="btn small" id="tReset" type="button" hidden>Use whole video</button></div></div>
+    </div>
+    <div class="trow"><div class="field" style="flex:1 1 220px;margin:0"><label for="tName">Name</label><input type="text" id="tName" maxlength="120"></div>
+      <div class="field" style="flex:0 1 230px;margin:0"><label for="tQuality">Quality</label><select id="tQuality"></select></div>
+      <label class="tcheck"><input type="checkbox" id="tSound" checked> Keep sound</label></div>
+    <div class="tprog" id="tProg" hidden><div class="tbarfill" id="tBar"></div></div>
+    <div class="msg" id="tMsg"></div>
+    <div class="btns tend"><button class="btn" id="tCancel" type="button">Cancel</button><button class="btn primary" id="tSave" type="button">Add video</button></div>
+  </div>
+</div>
+<aside class="drawer" id="drawer" hidden aria-labelledby="dTitle" role="dialog" aria-modal="true">
+  <div class="dh">
+    <div class="grow">
+      <span class="pill" id="dTag"></span>
+      <h2 id="dTitle"></h2>
+    </div>
+    <button class="x" id="dClose" aria-label="Close panel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="db">
+    <section class="sec">
+      <h3>Media</h3>
+      <div class="vlist" id="vList"></div>
+      <div id="vAdd" hidden>
+        <div class="btns" style="margin-top:12px">
+          <button class="btn primary" id="vUploadBtn" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg>Add video</button>
+          <button class="btn" id="vImgBtn" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Add pictures</button>
+        </div>
+        <div class="msg" id="vMsg"></div>
+        <div class="linkbox">
+          <label for="vLink">Add a link</label>
+          <input type="url" id="vLink" placeholder="https://…">
+          <div class="linkrow"><input type="text" id="vLinkName" placeholder="Title (optional)" aria-label="Link title"><button class="btn" id="vLinkBtn" type="button">Add link</button></div>
+        </div>
+      </div>
+    </section>
+    <section class="sec" id="platSec" hidden>
+      <h3>Available on</h3>
+      <div class="plats" id="platView"></div>
+      <div class="platpick" id="platPick" hidden></div>
+      <div class="msg" id="pMsg" hidden></div>
+    </section>
+    <section class="sec" id="editSec" hidden>
+      <h3>Details</h3>
+      <div class="field"><label for="eTitle">Name</label><input type="text" id="eTitle"></div>
+      <div class="field"><label for="eTag">Status tag</label><input type="text" id="eTag" placeholder="e.g. Live, In dev, Grant"></div>
+      <div class="field"><label for="eNote">Note</label><textarea id="eNote"></textarea></div>
+      <div class="btns">
+        <button class="btn" id="eSave" type="button">Save details</button>
+        <button class="btn" id="eChild" type="button">Add sub-item</button>
+        <button class="btn danger" id="eDel" type="button">Delete item</button>
+      </div>
+      <div class="msg" id="eMsg"></div>
+    </section>
+    <section class="sec projsec" id="projSec">
+      <h3>Project folder</h3>
+      <p class="msg" id="projPath"></p>
+    </section>
+  </div>
+</aside>
+
+<script src="app/app.js"></script>
+</body>
+</html>
