@@ -18,6 +18,39 @@
   const vp=$('vp'), world=$('world'), links=$('links');
   const el = (tag, cls, text) => { const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; };
 
+  /* ---------- language: English or Simplified Chinese. Product names stay in English. ---------- */
+  // Interface text a viewer sees. Editor-only tools stay in English.
+  const ZH={ 'Media':'媒体', 'Available on':'适用平台', 'Loading the map':'正在加载地图', 'Opening your project.':'正在打开项目。',
+    'Zoom in':'放大', 'Zoom out':'缩小', 'Fit map to screen':'适应屏幕', 'Close panel':'关闭面板', 'Close player':'关闭播放器',
+    'Previous video':'上一个', 'Next video':'下一个', 'Company':'公司', 'Category':'类别', 'Item':'项目', 'Untitled':'未命名',
+    'No media yet.':'暂无媒体。', 'Video':'视频', 'Picture':'图片', 'Link':'链接', 'Expand':'全屏', 'Play':'播放', 'Open':'打开',
+    'This opens in your web browser.':'将在浏览器中打开。', 'Open link':'打开链接', 'Published':'发布于', 'Switch language':'切换语言',
+    'Drag to move around · scroll or pinch to zoom · tap a card for details · tap a thumbnail to play':'拖动以移动 · 滚动或双指缩放 · 点击卡片查看详情 · 点击缩略图播放',
+    'Drag the background to move around · scroll or pinch to zoom · drag cards to rearrange · click a card for tools · double-click to edit text':'拖动背景移动 · 滚动或双指缩放 · 拖动卡片重新排列 · 点击卡片打开工具 · 双击编辑文字' };
+  // Common status tags, kickers and connector labels, so they don't need translating card by card.
+  const ZH_WORDS={ 'hardware':'硬件', 'software':'软件', 'live':'已上线', 'demo':'演示', 'built':'已完成', 'in dev':'开发中', 'grant':'资助项目',
+    'custom':'定制', 'tool':'工具', 'patent':'专利', 'r&d':'研发', 'external':'外部合作', 'proof of concept':'概念验证', 'concept':'概念',
+    'not developed':'未开发', 'paused':'已暂停', 'on hold':'搁置', 'delayed':'延期', 'uses':'使用', 'backend connected':'后端连接' };
+  let lang='en';
+  try{ lang=localStorage.getItem('mapLang') || ''; }catch(e){}
+  if(lang!=='en' && lang!=='zh') lang = /^zh/i.test(navigator.language||'') ? 'zh' : 'en';
+  const ui = s => (lang==='zh' && ZH[s]) || s;
+  const word = s => (lang==='zh' && s && ZH_WORDS[String(s).trim().toLowerCase()]) || s;
+  // A card's text in the current language: its own Chinese version, else a known word, else the English.
+  function tx(id, f){
+    const d=nodes[id]; if(!d) return '';
+    const en = f==='kicker' ? (d.kicker==null ? 'Hardware' : d.kicker) : (d[f]||'');
+    if(lang!=='zh') return en;
+    const z=d.zh && d.zh[f]; if(z) return z;
+    return f==='tag'||f==='kicker' ? word(en) : en;
+  }
+  function counts(nV,nI,nL){
+    const p=[];
+    if(lang==='zh'){ if(nV) p.push(nV+' 个视频'); if(nI) p.push(nI+' 张图片'); if(nL) p.push(nL+' 个链接'); }
+    else { if(nV) p.push(nV===1?'1 video':nV+' videos'); if(nI) p.push(nI===1?'1 picture':nI+' pictures'); if(nL) p.push(nL===1?'1 link':nL+' links'); }
+    return p.join(' · ');
+  }
+
   /* ---------- data helpers ---------- */
   function kids(pid){ return Object.keys(nodes).filter(id=>nodes[id].parent===pid).sort((a,b)=>(nodes[a].order??0)-(nodes[b].order??0)); }
   function topOf(id){ let cur=id, g=0; while(cur && g++<30){ if(nodes[cur]?.parent==='microtube') return cur; cur=nodes[cur]?.parent; } return null; }
@@ -81,9 +114,8 @@
     if(visual){ const th=el('div','thumb'); const im=document.createElement('img'); im.src = visual.kind==='image' ? fileUrl(visual) : mediaUrl(visual.poster); im.alt=''; im.loading='lazy'; im.draggable=false; th.appendChild(im);
       if(visual.kind==='file'){ const pl=el('div','play'); pl.appendChild(playIcon()); th.appendChild(pl); } wrap.appendChild(th); }
     const nV=vs.filter(v=>v.kind==='file').length, nI=vs.filter(v=>v.kind==='image').length, nL=vs.filter(v=>v.kind==='link').length;
-    const parts=[]; if(nV) parts.push(nV===1?'1 video':nV+' videos'); if(nI) parts.push(nI===1?'1 picture':nI+' pictures'); if(nL) parts.push(nL===1?'1 link':nL+' links');
-    const vc=el('span','vcount'); vc.appendChild(playIcon()); vc.appendChild(document.createTextNode(parts.join(' · ')));
-    wrap.appendChild(vc); wrap.dataset.play='1'; wrap.title = nV ? 'Play' : 'Open';
+    const vc=el('span','vcount'); vc.appendChild(playIcon()); vc.appendChild(document.createTextNode(counts(nV,nI,nL)));
+    wrap.appendChild(vc); wrap.dataset.play='1'; wrap.title = ui(nV ? 'Play' : 'Open');
     return wrap;
   }
   /* platforms: generic device glyphs with the platform name */
@@ -115,16 +147,17 @@
   function fillNode(btn, id, kind){
     const d=nodes[id]; btn.textContent='';
     const inner=el('span','in');
+    const title=tx(id,'title')||ui('Untitled'), note=tx(id,'note'), tag=tx(id,'tag');
     if(kind==='root'||kind==='branch'){
-      if(kind==='branch'){ const kick = d.kicker==null ? 'Hardware' : d.kicker; const kr=el('span','krow'); if(kick) kr.appendChild(el('span','k',kick)); if(d.tag) kr.appendChild(el('span','pill',d.tag)); if(kr.childNodes.length) inner.appendChild(kr); }
-      inner.appendChild(el('span','t',d.title||'Untitled')); if(d.note){ const s=el('span','s',d.note); s.style.display='block'; inner.appendChild(s); }
+      if(kind==='branch'){ const kick=tx(id,'kicker'); const kr=el('span','krow'); if(kick) kr.appendChild(el('span','k',kick)); if(tag) kr.appendChild(el('span','pill',tag)); if(kr.childNodes.length) inner.appendChild(kr); }
+      inner.appendChild(el('span','t',title)); if(note){ const s=el('span','s',note); s.style.display='block'; inner.appendChild(s); }
     } else if(kind==='group'){
-      const row=el('span','row'); row.appendChild(el('span','t',d.title||'Untitled')); if(d.tag) row.appendChild(el('span','pill',d.tag)); inner.appendChild(row); if(d.note){ const n=el('span','n',d.note); n.style.display='block'; inner.appendChild(n); }
+      const row=el('span','row'); row.appendChild(el('span','t',title)); if(tag) row.appendChild(el('span','pill',tag)); inner.appendChild(row); if(note){ const n=el('span','n',note); n.style.display='block'; inner.appendChild(n); }
     } else {
-      const row=el('span','row'); row.appendChild(el('span','t',d.title||'Untitled'));
-      if(d.tag) row.appendChild(el('span','pill'+(/delay|paused|on hold/i.test(d.tag)?' muted':''),d.tag));
+      const row=el('span','row'); row.appendChild(el('span','t',title));
+      if(tag) row.appendChild(el('span','pill'+(/delay|paused|on hold/i.test(d.tag||'')?' muted':''),tag));
       inner.appendChild(row);
-      if(d.note){ const n=el('span','n',d.note); n.style.display='block'; inner.appendChild(n); }
+      if(note){ const n=el('span','n',note); n.style.display='block'; inner.appendChild(n); }
     }
     const ps=platStrip(id); if(ps) inner.appendChild(ps);
     const vs=vidStrip(id); if(vs) inner.appendChild(vs);
@@ -135,6 +168,7 @@
     if(dragging){ pendingRender=true; return; }
     $('state').hidden = !!nodes.microtube;
     if(!nodes.microtube){ $('state').querySelector('h2').textContent='No map yet'; $('state').querySelector('p').textContent='Ask Claude to set up the Microtube products and projects.'; }
+    document.documentElement.lang = lang==='zh' ? 'zh-CN' : 'en';
     computePositions();
     // remove stale
     Object.keys(els).forEach(id=>{ if(!nodes[id]){ els[id].remove(); delete els[id]; } });
@@ -144,9 +178,9 @@
       if(!b){ b=document.createElement('div'); b.setAttribute('role','button'); b.tabIndex=0; b.dataset.id=id; world.appendChild(b); els[id]=b; attachNode(b); }
       const box=(kind==='card'||kind==='group') && nodes[id].box && nodes[id].box!=='auto' ? ' box-'+nodes[id].box : '';
       b.className='node '+kind+' '+branchOf(id)+box+(id===selected?' selected':'')+(id===editing?' editing':'');
-      const sig=kind+'|'+JSON.stringify([nodes[id].title,nodes[id].note,nodes[id].tag,nodes[id].videos,nodes[id].platforms,nodes[id].kicker]);
+      const sig=kind+'|'+lang+'|'+JSON.stringify([nodes[id].title,nodes[id].note,nodes[id].tag,nodes[id].videos,nodes[id].platforms,nodes[id].kicker,nodes[id].zh]);
       if(b.dataset.sig!==sig && id!==editing){ b.dataset.sig=sig; fillNode(b,id,kind); }
-      b.setAttribute('aria-label',(nodes[id].title||'Untitled')+(videos(id).length?', '+videos(id).length+' videos':''));
+      b.setAttribute('aria-label',(tx(id,'title')||ui('Untitled'))+(videos(id).length?', '+counts(videos(id).length,0,0):''));
       place(id);
     });
     if(selected && !nodes[selected]) select(null);
@@ -177,7 +211,8 @@
       const bow=Math.min(120,len*0.18), qx=mx-dy/len*bow, qy=my+dx/len*bow;
       const d=`M ${a.x} ${a.y} Q ${qx} ${qy} ${c.x} ${c.y}`;
       const p=document.createElementNS('http://www.w3.org/2000/svg','path'); p.setAttribute('d',d); p.setAttribute('class','xlink'+(lid===selLink?' sel':'')); links.appendChild(p);
-      if(L.label){ const t=document.createElementNS('http://www.w3.org/2000/svg','text'); t.setAttribute('x',(mx+qx)/2); t.setAttribute('y',(my+qy)/2+4); t.textContent=L.label; links.appendChild(t); }
+      const label=linkLabel(L);
+      if(label){ const t=document.createElementNS('http://www.w3.org/2000/svg','text'); t.setAttribute('x',(mx+qx)/2); t.setAttribute('y',(my+qy)/2+4); t.textContent=label; links.appendChild(t); }
       if(canEdit){ const h=document.createElementNS('http://www.w3.org/2000/svg','path'); h.setAttribute('d',d); h.setAttribute('class','hit'); h.dataset.lid=lid;
         h.addEventListener('pointerdown',e=>{ e.stopPropagation(); }); h.addEventListener('click',e=>{ e.stopPropagation(); selectLink(lid,e); }); links.appendChild(h); }
     });
@@ -304,24 +339,24 @@
     const d=nodes[openId]; if(!d){ closeDrawer(); return; }
     const br=branchOf(openId), kind=kindOf(openId);
     const tag=$('dTag'); tag.className='pill '+br;
-    tag.textContent = kind==='root' ? 'Company' : kind==='branch' ? 'Hardware' : kind==='group' ? 'Category' : (d.tag||({hexr:'HexR',flexr:'FlexR',aris:'ARIS'}[br]||'Item'));
-    $('dTitle').textContent=d.title||'Untitled';
-    const list=$('vList'); const sig=JSON.stringify(videos(openId));
+    tag.textContent = kind==='root' ? ui('Company') : kind==='branch' ? word('Hardware') : kind==='group' ? ui('Category') : (tx(openId,'tag')||({hexr:'HexR',flexr:'FlexR',aris:'ARIS'}[br]||ui('Item')));
+    $('dTitle').textContent=tx(openId,'title')||ui('Untitled');
+    const list=$('vList'); const sig=lang+JSON.stringify(videos(openId));
     if(full || list.dataset.sig!==sig){
       list.dataset.sig=sig; list.textContent='';
       const vs=videos(openId);
-      if(!vs.length) list.appendChild(el('div','empty', canEdit ? 'Nothing here yet. Add a video, a picture or a link.' : 'No media yet.'));
+      if(!vs.length) list.appendChild(el('div','empty', canEdit ? 'Nothing here yet. Add a video, a picture or a link.' : ui('No media yet.')));
       vs.forEach((v,i)=>{
         const item=el('div','vitem');
         if(v.kind==='file'){ const vid=document.createElement('video'); vid.src=fileUrl(v); if(v.poster) vid.poster=mediaUrl(v.poster); vid.controls=true; vid.preload='metadata'; vid.playsInline=true; item.appendChild(vid); }
         if(v.kind==='image'){ const im=document.createElement('img'); im.src=fileUrl(v); im.alt=v.name||'Picture'; im.className='vimg'; im.loading='lazy'; im.addEventListener('click',()=>openPlayer(openId,i)); item.appendChild(im); }
         const meta=el('div','vmeta');
-        const kindIcon=el('span','vkind', v.kind==='file'?'Video':v.kind==='image'?'Picture':'Link'); meta.appendChild(kindIcon);
+        const kindIcon=el('span','vkind', ui(v.kind==='file'?'Video':v.kind==='image'?'Picture':'Link')); meta.appendChild(kindIcon);
         if(v.kind==='link'){ const href=safeLink(v.url); const a=el('a','name', v.name||v.url); if(href){a.href=href; a.target='_blank'; a.rel='noopener noreferrer';} meta.appendChild(a); }
         else {
-          const nm=el('span','name', (v.name||(v.kind==='image'?'Picture':'Video')) + (v.duration?' · '+fmtDur(v.duration):''));
+          const nm=el('span','name', (v.name||ui(v.kind==='image'?'Picture':'Video')) + (v.duration?' · '+fmtDur(v.duration):''));
           meta.appendChild(nm);
-          const ex=el('button','btn small','Expand'); ex.type='button'; ex.addEventListener('click',()=>{ item.querySelector('video')?.pause(); openPlayer(openId,i); }); meta.appendChild(ex);
+          const ex=el('button','btn small',ui('Expand')); ex.type='button'; ex.addEventListener('click',()=>{ item.querySelector('video')?.pause(); openPlayer(openId,i); }); meta.appendChild(ex);
         }
         if(canEdit){
           const up=el('button','btn small','↑'); up.type='button'; up.setAttribute('aria-label','Move up'); up.disabled=i===0; up.addEventListener('click',()=>moveMedia(i,-1)); meta.appendChild(up);
@@ -339,6 +374,11 @@
       if(full || document.activeElement!==$('eTitle')) $('eTitle').value=d.title||'';
       if(full || document.activeElement!==$('eTag')) $('eTag').value=d.tag||'';
       if(full || document.activeElement!==$('eNote')) $('eNote').value=d.note||'';
+      const z=d.zh||{};
+      if(full || document.activeElement!==$('eTitleZh')) $('eTitleZh').value=z.title||'';
+      if(full || document.activeElement!==$('eTagZh')) $('eTagZh').value=z.tag||'';
+      if(full || document.activeElement!==$('eNoteZh')) $('eNoteZh').value=z.note||'';
+      $('eTagZh').parentElement.hidden = kind==='root';
       const fixed = kind==='root' || !!BR[openId];
       $('eDel').hidden = fixed;
       $('eTag').parentElement.hidden = kind==='root';
@@ -403,18 +443,18 @@
   function showVideo(i){
     const vs=videos(P.id); if(!vs.length){ closePlayer(); return; }
     P.i=(i+vs.length)%vs.length; const v=vs[P.i];
-    $('pTitle').textContent=nodes[P.id]?.title||'Media';
-    $('pSub').textContent=(v.name||(v.kind==='image'?'Picture':v.kind==='link'?'Link':'Video'))+(vs.length>1?'  ·  '+(P.i+1)+' of '+vs.length:'');
+    $('pTitle').textContent=tx(P.id,'title')||ui('Media');
+    $('pSub').textContent=(v.name||ui(v.kind==='image'?'Picture':v.kind==='link'?'Link':'Video'))+(vs.length>1?'  ·  '+(P.i+1)+(lang==='zh'?' / ':' of ')+vs.length:'');
     const body=$('pBody'); body.querySelectorAll('video').forEach(x=>x.pause()); body.textContent='';
     if(v.kind==='file'){ const vid=document.createElement('video'); vid.src=fileUrl(v); if(v.poster) vid.poster=mediaUrl(v.poster); vid.controls=true; vid.playsInline=true; vid.autoplay=true; vid.loop=vs.length===1;
       vid.addEventListener('ended',()=>{ const next=vs.findIndex((x,k)=>k>P.i && x.kind==='file'); if(next>0) showVideo(next); }); body.appendChild(vid); vid.play().catch(()=>{}); }
     else if(v.kind==='image'){ const im=document.createElement('img'); im.src=fileUrl(v); im.alt=v.name||'Picture'; im.className='pimg'; body.appendChild(im); }
-    else { const box=el('div','plink'); box.appendChild(el('p',null,'This opens in your web browser.')); const href=safeLink(v.url); const a=el('a',null,'Open '+(v.name||'link')); if(href){ a.href=href; a.target='_blank'; a.rel='noopener noreferrer'; } box.appendChild(a); const u=el('p','purl',v.url||''); box.appendChild(u); body.appendChild(box); }
+    else { const box=el('div','plink'); box.appendChild(el('p',null,ui('This opens in your web browser.'))); const href=safeLink(v.url); const a=el('a',null, v.name ? ui('Open')+' '+v.name : ui('Open link')); if(href){ a.href=href; a.target='_blank'; a.rel='noopener noreferrer'; } box.appendChild(a); const u=el('p','purl',v.url||''); box.appendChild(u); body.appendChild(box); }
     const multi=vs.length>1; $('pPrev').hidden=!multi; $('pNext').hidden=!multi;
     const th=$('pThumbs'); th.textContent=''; th.hidden=!multi;
     if(multi) vs.forEach((x,k)=>{ const b=el('button'); b.type='button'; b.setAttribute('aria-label','Show '+(x.name||'item '+(k+1))); if(k===P.i) b.setAttribute('aria-current','true');
       const src = x.kind==='image' ? fileUrl(x) : x.poster ? mediaUrl(x.poster) : null;
-      if(src){ const im=document.createElement('img'); im.src=src; im.alt=''; b.appendChild(im); } else b.textContent = x.kind==='link' ? 'Link' : 'Video';
+      if(src){ const im=document.createElement('img'); im.src=src; im.alt=''; b.appendChild(im); } else b.textContent = ui(x.kind==='link' ? 'Link' : 'Video');
       b.addEventListener('click',()=>showVideo(k)); th.appendChild(b); });
   }
   function closePlayer(){ $('pBody').querySelectorAll('video').forEach(x=>x.pause()); $('pBody').textContent=''; $('player').hidden=true; if(P.ret&&P.ret.focus) P.ret.focus({preventScroll:true}); P.id=null; }
@@ -508,6 +548,9 @@
   $('eSave').addEventListener('click',async()=>{
     const patch={title:$('eTitle').value.trim()||'Untitled', note:$('eNote').value.trim()};
     if(!$('eTag').parentElement.hidden) patch.tag=$('eTag').value.trim();
+    const zh={...(nodes[openId].zh||{}), title:$('eTitleZh').value.trim(), note:$('eNoteZh').value.trim()};
+    if(!$('eTagZh').parentElement.hidden) zh.tag=$('eTagZh').value.trim();
+    Object.keys(zh).forEach(k=>{ if(!zh[k]) delete zh[k]; }); patch.zh=zh;
     try{ await db.doc('nodes/'+openId).update(patch); setMsg('eMsg','Saved.'); }catch(e){ setMsg('eMsg','Could not save. Try again.',true); }
   });
   $('eChild').addEventListener('click',()=>{ const pid=openId; closeDrawer(); addChild(pid); });
@@ -687,6 +730,15 @@
     const patch={title, note}; const d0=nodes[id]||{};
     const tg=b?.querySelector('.in .tagf'); if(tg) patch.tag=clean(tg);
     const k=b?.querySelector('.in .krow .k'); if(k && kindOf(id)==='branch') patch.kicker=clean(k);
+    if(lang==='zh'){   // editing what's shown in Chinese changes only the Chinese version
+      const shown={title:tx(id,'title')||ui('Untitled'), note:tx(id,'note'), tag:tx(id,'tag'), kicker:tx(id,'kicker')};
+      const zh={...(d0.zh||{})}; let changedZh=false;
+      Object.keys(patch).forEach(key=>{ if((patch[key]||'')!==(shown[key]||'')){ if(patch[key]) zh[key]=patch[key]; else delete zh[key]; changedZh=true; } });
+      if(changedZh && nodes[id]) nodes[id]={...nodes[id], zh};
+      endEditUI();
+      if(changedZh){ try{ await db.doc('nodes/'+id).update({zh}); }catch(e){ toast('Could not save the text. Try again.'); } }
+      return;
+    }
     const changed = Object.keys(patch).some(key=> (patch[key]||'') !== ((key==='kicker' && d0.kicker==null) ? 'Hardware' : (d0[key]||'')));
     if(changed && nodes[id]) nodes[id]={...nodes[id], ...patch};
     endEditUI();
@@ -771,7 +823,7 @@
     showLabelForm(false);
     if(!lid){ bar.hidden=true; return; }
     bar.hidden=false;
-    $('lLabel').textContent = xlinks[lid]?.label ? 'Edit label' : 'Add label';
+    $('lLabel').textContent = xlinks[lid] && linkLabel(xlinks[lid]) ? 'Edit label' : 'Add label';
     const bw=bar.offsetWidth, bh=bar.offsetHeight; const x=Math.max(8,Math.min(window.innerWidth-bw-8,(ev?ev.clientX:window.innerWidth/2)-bw/2)); const y=Math.max(8,(ev?ev.clientY:window.innerHeight/2)-bh-14);
     bar.style.left=x+'px'; bar.style.top=y+'px';
   }
@@ -780,23 +832,25 @@
     try{ await db.doc('links/'+lid).delete(); }catch(e){ toast('Could not delete the connector. Try again.'); }
   });
   function showLabelForm(on){ $('lLabel').hidden=on; $('lDel').hidden=on; $('lForm').hidden=!on; }
-  $('lLabel').addEventListener('click',()=>{ const lid=selLink; if(!lid) return; showLabelForm(true); $('lInput').value=xlinks[lid].label||''; $('lInput').focus(); $('lInput').select(); });
+  function linkLabel(L){ return lang==='zh' ? (L.zh&&L.zh.label) || word(L.label) || '' : L.label || ''; }
+  $('lLabel').addEventListener('click',()=>{ const lid=selLink; if(!lid) return; showLabelForm(true); $('lInput').value=linkLabel(xlinks[lid]); $('lInput').focus(); $('lInput').select(); });
   $('lInput').addEventListener('keydown',ev=>{ ev.stopPropagation(); if(ev.key==='Escape'){ showLabelForm(false); selectLink(null); } });
   $('lForm').addEventListener('submit',async ev=>{
     ev.preventDefault(); const lid=selLink; if(!lid) return; const label=$('lInput').value.replace(/\s+/g,' ').trim();
-    xlinks[lid]={...xlinks[lid],label}; showLabelForm(false); selectLink(null);
-    try{ await db.doc('links/'+lid).update({label}); }catch(e){ toast('Could not save the label. Try again.'); }
+    const patch = lang==='zh' ? {zh:{...(xlinks[lid].zh||{}), label}} : {label};
+    xlinks[lid]={...xlinks[lid],...patch}; showLabelForm(false); selectLink(null);
+    try{ await db.doc('links/'+lid).update(patch); }catch(e){ toast('Could not save the label. Try again.'); }
   });
 
   /* ---------- local storage layer (same shape the map code expects) ---------- */
-  let saveTimer=null, savePending=false, mapTitle='Product & project map';
+  let saveTimer=null, savePending=false, mapTitle='Product & project map', mapTitleZh='';
   function setSave(state){ const e=$('saveState'); if(!e) return; e.dataset.state=state; e.textContent = state==='saving'?'Saving…':state==='error'?'Not saved. Check the project folder.':'All changes saved'; }
   function makeDB(initial, persist){
     const store={nodes:{...(initial.nodes||{})}, links:{...(initial.links||{})}};
     const subs={nodes:[],links:[]};
     const snap=c=>({docs:Object.entries(store[c]).map(([id,d])=>({id,exists:true,data:()=>d}))});
     const flush=async()=>{ clearTimeout(saveTimer); saveTimer=null; if(!savePending) return; savePending=false;
-      try{ await persist({title:mapTitle, nodes:store.nodes, links:store.links}); setSave('saved'); }catch(e){ setSave('error'); } };
+      try{ await persist({title:mapTitle, titleZh:mapTitleZh, nodes:store.nodes, links:store.links}); setSave('saved'); }catch(e){ setSave('error'); } };
     const changed=c=>{ subs[c].forEach(f=>f(snap(c))); if(persist){ savePending=true; setSave('saving'); clearTimeout(saveTimer); saveTimer=setTimeout(flush,400); } };
     const rid=()=>Math.random().toString(36).slice(2,12)+Date.now().toString(36).slice(-6);
     const ref=(c,id)=>({ id,
@@ -805,14 +859,14 @@
       async delete(){ delete store[c][id]; changed(c); } });
     return { doc:path=>{ const [c,id]=path.split('/'); return ref(c,id); },
       collection:c=>({ doc:id=>ref(c,id||rid()), onSnapshot:f=>{ subs[c].push(f); setTimeout(()=>f(snap(c)),0); return ()=>{}; } }),
-      touch:()=>changed('nodes'), flush, data:()=>({title:mapTitle, nodes:store.nodes, links:store.links}) };
+      touch:()=>changed('nodes'), flush, data:()=>({title:mapTitle, titleZh:mapTitleZh, nodes:store.nodes, links:store.links}) };
   }
 
   /* ---------- map title (double-click to rename in the editor) ---------- */
-  function showTitle(){ $('mapTitle').textContent=mapTitle; document.title=mapTitle+' · Microtube'; }
+  function showTitle(){ const t = lang==='zh' && mapTitleZh || mapTitle; $('mapTitle').textContent=t; document.title=t+' · Microtube'; }
   $('mapTitle').addEventListener('dblclick',()=>{
     if(!canEdit) return; const t=$('mapTitle'); editable(t,'Map name'); t.focus(); const r=document.createRange(); r.selectNodeContents(t); const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
-    const done=keep=>{ t.removeAttribute('contenteditable'); t.onkeydown=null; t.onblur=null; if(keep){ const v=t.textContent.replace(/\s+/g,' ').trim(); if(v){ mapTitle=v; db.touch(); } } showTitle(); };
+    const done=keep=>{ t.removeAttribute('contenteditable'); t.onkeydown=null; t.onblur=null; if(keep){ const v=t.textContent.replace(/\s+/g,' ').trim(); if(v){ if(lang==='zh') mapTitleZh=v; else mapTitle=v; db.touch(); } } showTitle(); };
     t.onkeydown=e=>{ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); done(true); } if(e.key==='Escape'){ e.preventDefault(); done(false); } };
     t.onblur=()=>done(true);
   });
@@ -837,6 +891,30 @@
   $('pubClose').addEventListener('click',()=>{ $('pubModal').hidden=true; });
   $('pubModal').addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Escape') $('pubModal').hidden=true; });
 
+  /* ---------- language button ---------- */
+  let publishedAt=null;
+  function applyLang(){
+    document.documentElement.lang = lang==='zh' ? 'zh-CN' : 'en';
+    // Fixed page text is tagged in index.html; its English is kept so it can be switched back.
+    document.querySelectorAll('[data-i18n]').forEach(e=>{ if(!e.dataset.en) e.dataset.en=e.textContent; e.textContent=ui(e.dataset.en); });
+    document.querySelectorAll('[data-i18n-aria]').forEach(e=>{ if(!e.dataset.enAria) e.dataset.enAria=e.getAttribute('aria-label'); e.setAttribute('aria-label',ui(e.dataset.enAria)); });
+    const b=$('langBtn'); b.textContent = lang==='zh' ? 'EN' : '中文'; b.lang = lang==='zh' ? 'en' : 'zh-CN';
+    b.setAttribute('aria-label', lang==='zh' ? 'Switch to English' : '切换到中文');
+    $('hint').textContent = ui(canEdit
+      ? 'Drag the background to move around · scroll or pinch to zoom · drag cards to rearrange · click a card for tools · double-click to edit text'
+      : 'Drag to move around · scroll or pinch to zoom · tap a card for details · tap a thumbnail to play');
+    if(publishedAt){ const d=new Date(publishedAt); $('pubDate').textContent=ui('Published')+' '+d.toLocaleDateString(lang==='zh'?'zh-CN':undefined,{day:'numeric',month:'short',year:'numeric'}); $('pubDate').hidden=false; }
+    showTitle();
+  }
+  $('langBtn').addEventListener('click',()=>{
+    if(editing) commitEdit();
+    lang = lang==='zh' ? 'en' : 'zh';
+    try{ localStorage.setItem('mapLang',lang); }catch(e){}
+    applyLang(); render();
+    if(P.id) showVideo(P.i);
+    if(selLink) selectLink(null);
+  });
+
   /* ---------- start ---------- */
   applyView();
   (async function start(){
@@ -855,15 +933,13 @@
     } else if(window.MAP_DATA){
       data=window.MAP_DATA; mediaBase=''; canEdit=false;
       db=makeDB(data, null);
-      if(data.publishedAt){ const d=new Date(data.publishedAt); $('pubDate').textContent='Published '+d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}); $('pubDate').hidden=false; }
+      publishedAt=data.publishedAt||null;
     } else { showState('No map found','Open this file from a published Microtube Map folder.'); return; }
-    mapTitle=data.title||mapTitle; showTitle();
+    mapTitle=data.title||mapTitle; mapTitleZh=data.titleZh||'';
     document.body.classList.toggle('viewer',!canEdit);
     $('tidy').hidden = !canEdit; $('publishBtn').hidden=!canEdit; $('saveState').hidden=!canEdit;
     document.body.classList.toggle('can-edit',canEdit);
-    $('hint').textContent = canEdit
-      ? 'Drag the background to move around · scroll or pinch to zoom · drag cards to rearrange · click a card for tools · double-click to edit text'
-      : 'Drag to move around · scroll or pinch to zoom · tap a card for details · tap a thumbnail to play';
+    applyLang();
     db.collection('links').onSnapshot(snap=>{
       const next={}; snap.docs.forEach(d=>{ if(d.exists){ const v=d.data(); if(v&&v.from&&v.to) next[d.id]=v; } }); xlinks=next; if(selLink&&!xlinks[selLink]) selectLink(null); else drawLinks();
     });

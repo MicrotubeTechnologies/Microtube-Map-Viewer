@@ -17,8 +17,8 @@
   --neutral-soft:rgba(255,255,255,.08); --neutral-ink:#C9CACE;
   --cta:linear-gradient(115deg,#F2661A,#FF9D45);
   --danger:#FF7A70; --focus:#9BB8EE; --scrim:rgba(0,0,0,.6);
-  --display:"Archivo",ui-sans-serif,system-ui,sans-serif;
-  --body:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --display:"Archivo","PingFang SC","Microsoft YaHei","Noto Sans SC","Hiragino Sans GB",ui-sans-serif,system-ui,sans-serif;
+  --body:"Inter","PingFang SC","Microsoft YaHei","Noto Sans SC","Hiragino Sans GB",ui-sans-serif,system-ui,sans-serif;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -169,6 +169,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .hint{font-size:13px;color:var(--muted);max-width:min(460px,calc(100vw - 260px))}
 .tool{min-width:44px;height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:600}
 .tool:hover{border-color:var(--rail)}
+.tool.lang{min-width:56px}
+.sec .zhhead{margin-top:18px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:12;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:14px}
 .state{position:fixed;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);pointer-events:none;padding:0 24px}
 .state h2{font-family:var(--display);color:var(--ink);font-size:20px;margin:0 0 6px}
